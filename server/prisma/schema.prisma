@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}  
+
+// USER
+model User {
+  id            String   @id @default(cuid()) 
+  name          String
+  email         String?  @unique
+  passwordHash  String?
+  avatarUrl     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 1-to-1 Relations
+  profile       UserProfile?  
+
+
+  // 1-to-Many Relations
+  mealLogs       MealLog[]
+  mealTemplates  MealTemplate[]
+  refreshTokens  RefreshToken[]
+  authLogs       AuthLog[]
+
+  @@map("users")  
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model AuthLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  event     String   // e.g., "login", "failed_attempt"
+  ipAddress String?
+  device    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("auth_logs")
+}
+
+model UserProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  dietType      String   @default("indian")
+  calorieGoal   Int      @default(2200)
+  proteinGoal   Int      @default(120)
+  carbGoal      Int      @default(280)
+  fatGoal       Int      @default(70)
+  fibreGoal     Int      @default(30)
+  weeklyBudget  Int      @default(3500)
+  budgetPeriod  String   @default("weekly")
+  age           Int?
+  goalMode      String   @default("maintain")
+  activityLevel String   @default("sedentary")
+  timezone      String   @default("Asia/Kolkata")
+
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+// MEAL TEMPLATES
+model MealTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  items     Json     // array of {name, quantity, calories, protein, carbs, fat, fibre}
+  totalCals Int
+  lastUsed  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("meal_templates")
+}
+
+// MEAL LOGS
+model MealLog {
+  id           String   @id @default(cuid())
+  userId       String
+
+  customName   String?  
+  quantity     Float    @default(1)
+  calories     Int
+  protein      Float
+  carbs        Float
+  fat          Float
+  fibre        Float    @default(0)
+  iron         Float    @default(0)
+  calcium      Float    @default(0)
+  vitaminB12   Float    @default(0)
+  mealType     String   // breakfast, lunch, snack, dinner
+  eatenAt      DateTime @default(now())
+  notes        String?
+  imageUrl     String?  // meal photo
+  aiParsed     Boolean  @default(false) 
+  aiConfidence Float?   
+  isFavorite   Boolean  @default(false)
+  
+  // Spending Tracking
+  isOutside    Boolean  @default(false)
+  cost         Float?   // Amount in ₹
+  source       String?  // Home, Zomato, Swiggy, Zepto, BigBasket, Instamart, etc.
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eatenAt])
+  @@index([userId, mealType])
+  @@map("meal_logs")
+}
+
