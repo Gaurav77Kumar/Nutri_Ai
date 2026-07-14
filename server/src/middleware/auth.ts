@@ -23,16 +23,17 @@ function isValidPayload(payload: unknown): payload is JwtPayload {
 
 export async function authenticate(req: AuthRequest, res: Response,next: NextFunction): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Missing or invalid authorization header" });
-      return;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice("Bearer ".length).trim();
+    } else if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
     }
 
-    const token = authHeader.slice("Bearer ".length).trim();
-    if(!token) {
-      res.status(401).json({ error: "Missing token"});
+    if (!token) {
+      res.status(401).json({ error: "Missing or invalid authorization token" });
       return;
     }
 
