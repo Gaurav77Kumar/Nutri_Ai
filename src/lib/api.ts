@@ -93,6 +93,9 @@ export interface Meal {
   triggerTags?: string[];
   mood?: string;
   hungerLevel?: number;
+  isOutside?: boolean;
+  cost?: number;
+  source?: string;
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
@@ -152,8 +155,8 @@ async function apiFetch<T>(
       credentials: "include", // for cookies (refresh token)
       signal: controller.signal,
     });
-  } catch (err: any) {
-    if (err.name === "AbortError") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
       throw new Error("Request timed out. Please check your internet connection and try again.");
     }
     throw new Error(`Network request failed. Please check your connection and try again`);
@@ -226,9 +229,9 @@ export const mealsApi = {
     return apiFetch<{ meals: Meal[]; total: number }>(`/meals?${searchParams.toString()}`);
   },
 
-  today: () => apiFetch<{ meals: Meal[]; totals: any; goals: any; mealCount: number }>("/meals/today"),
+  today: () => apiFetch<{ meals: Meal[]; totals: { calories: number; protein: number; carbs: number; fat: number; fibre: number; }; goals: { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number; fibreGoal: number; } | null; mealCount: number }>("/meals/today"),
 
-  week: () => apiFetch<{ weekData: any[]; totalMeals: number }>("/meals/week"),
+  week: () => apiFetch<{ weekData: { date: string; dayName: string; calories: number; protein: number; carbs: number; fat: number; mealCount: number }[]; totalMeals: number }>("/meals/week"),
 
   create: (meal: Partial<Meal>) =>
     apiFetch<Meal>("/meals", {
@@ -237,18 +240,18 @@ export const mealsApi = {
     }),
 
   analyze: (data: { description?: string; image?: string }) =>
-    apiFetch<{ items: any[] }>("/meals/analyze", {
+    apiFetch<{ items: Record<string, unknown>[] }>("/meals/analyze", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   calculate: (data: { itemsText: string }) =>
-    apiFetch<{ items: any[]; totalCalories: number }>("/meals/calculate", {
+    apiFetch<{ items: Record<string, unknown>[]; totalCalories: number }>("/meals/calculate", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  bulkCreate: (data: { items: any[]; mealType: string; isOutside?: boolean; cost?: number; source?: string; triggerTags?: string[]; mood?: string; hungerLevel?: number }) =>
+  bulkCreate: (data: { items: Record<string, unknown>[]; mealType: string; isOutside?: boolean; cost?: number; source?: string; triggerTags?: string[]; mood?: string; hungerLevel?: number }) =>
     apiFetch<{ meals: Meal[]; totalCalories: number }>("/meals/bulk", {
       method: "POST",
       body: JSON.stringify(data),
@@ -256,7 +259,7 @@ export const mealsApi = {
 };
 
 export const mealTemplatesApi = {
-  list: () => apiFetch<any[]>("/meals/templates"),
+  list: () => apiFetch<Record<string, unknown>[]>("/meals/templates"),
   logFromTemplate: (id: string, mealType: string) =>
     apiFetch<Meal[]>(`/meals/templates/${id}/log`, {
       method: "POST",
