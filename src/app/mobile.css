@@ -1,0 +1,92 @@
+/* Capacitor & Mobile Optimizations */
+
+/* Safe area insets for notched phones (iPhone X+, Android punch-holes) */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Disable long-press context menu on touch devices */
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Allow text selection only in inputs */
+  overscroll-behavior: none;
+}
+
+/* Re-enable select on inputs and textareas */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Prevent iOS rubber-band scrolling */
+html, body {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Main scroll container */
+#__next, main, [data-scroll-root] {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Minimum touch target size (48x48 per Google Material guidelines) */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Exception for inline/small badges */
+.badge, [data-slot="badge"] {
+  min-height: unset;
+  min-width: unset;
+}
+
+/* Smooth haptic-feel tap highlights */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Status bar safe area for navbar */
+.safe-top {
+  padding-top: var(--safe-area-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Prevent zoom on input focus (iOS) */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+@media (max-width: 380px) {
+  /* Small phones like iPhone SE */
+  .glass-card {
+    padding: 12px;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+}

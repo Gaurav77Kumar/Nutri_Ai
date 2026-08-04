@@ -1,65 +1,156 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState, useCallback } from "react";
+import { Navbar } from "@/components/navbar";
+import { DailyOverview } from "@/components/dashboard/daily-overview";
+import { MacroRings } from "@/components/dashboard/macro-rings";
+import { MealTimeline } from "@/components/dashboard/meal-timeline";
+import { QuickLog } from "@/components/dashboard/quick-log";
+
+
+import { BottomNav } from "@/components/bottom-nav";
+import { mealsApi, authApi, type User, type Meal } from "@/lib/api";
+import { Loader2 } from "lucide-react";
+import { notifyGoalReached, isNotificationEnabled } from "@/lib/notifications";
+import { BudgetInsights } from "@/components/dashboard/budget-insights";
+
+import { useRouter } from "next/navigation";
+import { useLanguage } from "@/lib/language-context";
+
+
+interface DashboardData {
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fibre: number;
+  };
+  goals: {
+    calorieGoal: number;
+    proteinGoal: number;
+    carbGoal: number;
+    fatGoal: number;
+    fibreGoal: number;
+  } | null;
+  meals: Meal[];
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { t } = useLanguage();
+  const [showQuickLog, setShowQuickLog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("nutriai_token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const [profile, dashboardData] = await Promise.all([
+        authApi.me(),
+        mealsApi.today()
+      ]);
+      
+      setUser(profile);
+      setData(dashboardData);
+    } catch (err) {
+      console.error("Dashboard init failed:", err);
+      localStorage.removeItem("nutriai_token");
+      router.push("/login");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    const init = async () => {
+      await fetchData();
+    };
+    init();
+  }, [fetchData]);
+
+  const refreshData = async () => {
+    try {
+      const dashboardData = await mealsApi.today();
+      setData(dashboardData);
+
+      // Check if any macro goals were just reached and notify
+      const notifEnabled = await isNotificationEnabled();
+      if (notifEnabled && dashboardData?.totals && dashboardData?.goals) {
+        const { totals, goals } = dashboardData;
+        if (totals.protein >= goals.proteinGoal && (data?.totals?.protein ?? 0) < goals.proteinGoal) {
+          notifyGoalReached("Protein");
+        }
+        if (totals.calories >= goals.calorieGoal && (data?.totals?.calories ?? 0) < goals.calorieGoal) {
+          notifyGoalReached("Calorie");
+        }
+      }
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        <p className="text-emerald-500/60 font-medium text-sm animate-pulse">
+          {t('connecting_db')}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 px-4 pb-24 pt-4 max-w-2xl mx-auto w-full space-y-5">
+        <DailyOverview 
+          calories={data?.totals?.calories ?? 0} 
+          goal={data?.goals?.calorieGoal ?? 2200}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        <BudgetInsights />
+        <MacroRings 
+          protein={data?.totals?.protein ?? 0}
+          carbs={data?.totals?.carbs ?? 0}
+          fat={data?.totals?.fat ?? 0}
+          fibre={data?.totals?.fibre ?? 0}
+          goals={data?.goals ?? undefined}
+        />
+        <MealTimeline 
+          meals={data?.meals || []} 
+          onAdd={() => setShowQuickLog(true)} 
+        />
       </main>
+
+
+      {/* Floating Add Button */}
+      <button
+        id="quick-log-btn"
+        onClick={() => setShowQuickLog(true)}
+        className="fixed z-40 w-14 h-14 rounded-full bg-emerald-500 text-white shadow-lg flex items-center justify-center hover:bg-emerald-400 active:scale-90 transition-all duration-200 glow-emerald cursor-pointer"
+        style={{ bottom: "calc(5rem + var(--safe-area-bottom, 0px))", right: "1.5rem" }}
+        aria-label="Log a meal"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      <QuickLog 
+        open={showQuickLog} 
+        onClose={() => setShowQuickLog(false)} 
+        onLogged={refreshData}
+      />
+      <BottomNav />
     </div>
   );
 }
+
